@@ -68,6 +68,16 @@ def check_buildable(p: Parcel, rules: dict) -> tuple[str, list[str]]:
 def _score_land(p: Parcel, cfg: dict) -> float:
     val = cfg["value"]
     p.status, p.reasons = check_buildable(p, cfg["buildable"])
+    p.max_bid = p.ideal_bid = None
+    if p.est_market_value:
+        fixed = val["closing_costs"] + val["quiet_title_cost"]
+        p.max_bid = round(p.est_market_value * val["max_bid_to_value"] - fixed, -2)
+        p.ideal_bid = round(min(p.max_bid, p.est_market_value * val["ideal_bid_to_value"] - fixed), -2)
+        if p.opening_bid is not None and p.opening_bid > p.max_bid:
+            p.status = "FAIL"
+            p.reasons = [f"opening bid {usd(p.opening_bid)} already above max bid {usd(p.max_bid)}"] + p.reasons
+        elif p.opening_bid is not None and p.opening_bid > p.ideal_bid:
+            p.notes.append("opening bid is above your ideal bid - margin will be thinner than target")
     p.est_equity = p.bid_to_value = None
     if p.est_market_value and p.opening_bid is not None:
         all_in = p.opening_bid + val["closing_costs"] + val["quiet_title_cost"]

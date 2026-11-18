@@ -57,11 +57,14 @@ class Parcel:
     bid_to_value: Optional[float] = None
     rehab_tier: str = ""                     # light / medium / heavy / gut
     est_rehab_cost: Optional[float] = None
-    max_bid: Optional[float] = None
+    max_bid: Optional[float] = None          # walk-away price (never bid above)
+    ideal_bid: Optional[float] = None        # bid that leaves your target profit
     est_profit: Optional[float] = None
     roi: Optional[float] = None
     rent_yield: Optional[float] = None
     deal_score: Optional[float] = None
+    is_new: bool = False                     # first time seen by the automatic run
+    source: str = ""                         # which source in sources.yaml it came from
 
     def to_dict(self) -> dict:
         return asdict(self)

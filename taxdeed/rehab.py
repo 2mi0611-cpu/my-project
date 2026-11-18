@@ -68,14 +68,25 @@ def estimate(p: Parcel, cfg: dict) -> None:
         p.est_arv = p.est_market_value
         notes.append("ARV taken from assessed value - pull sold comps")
 
-    p.max_bid = p.est_profit = p.roi = p.rent_yield = None
+    p.max_bid = p.ideal_bid = p.est_profit = p.roi = p.rent_yield = None
     if p.est_arv and p.est_rehab_cost is not None:
-        p.max_bid = round(p.est_arv * r["arv_factor"] - p.est_rehab_cost
-                          - val["closing_costs"] - val["quiet_title_cost"], -2)
+        fixed = val["closing_costs"] + val["quiet_title_cost"]
+        holding = r["holding_months"] * r["holding_cost_per_month"]
+        selling = p.est_arv * r["selling_cost_pct"] / 100
+        arv, repairs = p.est_arv, p.est_rehab_cost
+
+        def bid_for_profit(target: float) -> float:
+            """The opening-bid price at which the flip nets exactly `target`."""
+            return arv - selling - repairs - holding - fixed - target
+
+        # Max bid: the stricter of the 70% rule and the minimum-profit price.
+        rule_70 = arv * r["arv_factor"] - repairs - fixed
+        p.max_bid = round(min(rule_70, bid_for_profit(r["min_profit"])), -2)
+        p.ideal_bid = round(min(p.max_bid, bid_for_profit(r["target_profit"])), -2)
+        if p.opening_bid is not None and p.ideal_bid < p.opening_bid <= p.max_bid:
+            notes.append("opening bid is above your ideal bid - margin will be thinner than target")
         if p.opening_bid is not None:
-            acquisition = p.opening_bid + val["closing_costs"] + val["quiet_title_cost"]
-            holding = r["holding_months"] * r["holding_cost_per_month"]
-            selling = p.est_arv * r["selling_cost_pct"] / 100
+            acquisition = p.opening_bid + fixed
             cash_in = acquisition + p.est_rehab_cost + holding
             p.est_profit = round(p.est_arv - cash_in - selling, -2)
             p.roi = round(p.est_profit / cash_in, 3) if cash_in else None

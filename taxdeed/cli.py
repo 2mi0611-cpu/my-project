@@ -1,24 +1,30 @@
 """Command line:
 
+  taxdeed auto    [--sources sources.yaml]   # download every source, screen, write the shortlist
+  taxdeed fetch   [--sources sources.yaml]   # just download the lists
   taxdeed import  auction.csv --county "Polk" --state FL [--map map.yaml]
   taxdeed enrich  [--county Polk]            # flood, wetlands, slope, geocode
-  taxdeed score   [--config config.yaml]
+  taxdeed score
   taxdeed report  --out deals.html [--strategy land|rehab]   # or deals.csv
-  taxdeed run     auction.csv --county Polk --state FL --out deals.html   # all of the above
+  taxdeed run     auction.csv --county Polk --state FL --out deals.html   # one file, all steps
 """
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import logging
+import os
 import sys
 
 import yaml
 
+from . import auto
 from .config import load_config
 from .db import Store
 from .enrich.pipeline import enrich
+from .fetch import fetch_source, load_sources
 from .importers.csv_import import import_csv
-from .report import write_csv, write_html
+from .report import usd, write_csv, write_html
 from .scoring import score
 
 
@@ -58,10 +64,45 @@ def _report(args, store):
     print(f"Wrote {args.out} ({len(parcels)} properties)")
 
 
-def main(argv=None):
+def _fetch(args):
+    bad = 0
+    for src in load_sources(args.sources):
+        if args.only and src["name"] not in args.only:
+            continue
+        try:
+            print(f"{src['name']}: {fetch_source(src, args.raw_dir, dt.date.today())}")
+        except Exception as e:  # noqa: BLE001
+            bad += 1
+            print(f"{src['name']}: FAILED - {e}", file=sys.stderr)
+    return 1 if bad else 0
+
+
+def _m(v):
+    return "n/a" if v is None else usd(v)
+
+
+def _auto(args, store, cfg):
+    res = auto.run(cfg, store, sources_path=args.sources, overrides_path=args.overrides,
+                   out_root=args.out_dir, only=args.only, skip_enrich=args.skip_enrich,
+                   raw_dir=args.raw_dir)
+    print(f"{res['total']} properties from {res['sources_ok']} source(s), {res['new']} new, "
+          f"{len(res['shortlist'])} on the shortlist.")
+    print(f"Open {res['out_dir']}/shortlist.html\n")
+    for i, p in enumerate(res["shortlist"][:10], 1):
+        print(f"{i:>2}. {'NEW ' if p.is_new else ''}{p.address or p.parcel_id} "
+              f"[{p.strategy}, {p.status}, score {p.deal_score}]\n"
+              f"      opening {_m(p.opening_bid)}   ideal bid {_m(p.ideal_bid)}   "
+              f"max bid {_m(p.max_bid)}   est. profit {_m(p.est_profit)}")
+    for name, err in res["errors"].items():
+        print(f"! {name}: {err}", file=sys.stderr)
+    return 1 if res["errors"] else 0
+
+
+def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="taxdeed")
     ap.add_argument("--db", default="taxdeed.db")
-    ap.add_argument("--config", default=None, help="YAML with your criteria (see config.example.yaml)")
+    ap.add_argument("--config", default=None,
+                    help="YAML with your criteria (default: config.yaml if present; see config.example.yaml)")
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -82,10 +123,24 @@ def main(argv=None):
             sp.add_argument("--out", default="deals.html")
             sp.add_argument("--strategy", choices=["land", "rehab"], default=None,
                             help="only vacant land, or only houses to renovate")
+    for name in ("fetch", "auto"):
+        sp = sub.add_parser(name)
+        sp.add_argument("--sources", default="sources.yaml")
+        sp.add_argument("--only", nargs="*", help="only these source names")
+        sp.add_argument("--raw-dir", default="data/raw")
+        if name == "auto":
+            sp.add_argument("--overrides", default="overrides.csv",
+                            help="CSV of your own figures per parcel (ARV, rent, condition...)")
+            sp.add_argument("--skip-enrich", action="store_true")
+            sp.add_argument("--out-dir", default=None)
 
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
-    cfg = load_config(args.config)
+    cfg_path = args.config or ("config.yaml" if os.path.exists("config.yaml") else None)
+    cfg = load_config(cfg_path)
+
+    if args.cmd == "fetch":
+        return _fetch(args)
     store = Store(args.db)
     try:
         if args.cmd == "import":
@@ -96,6 +151,8 @@ def main(argv=None):
             _score(args, store, cfg)
         elif args.cmd == "report":
             _report(args, store)
+        elif args.cmd == "auto":
+            return _auto(args, store, cfg)
         elif args.cmd == "run":
             _import(args, store)
             args.county = args.county or None
@@ -105,6 +162,7 @@ def main(argv=None):
             _report(args, store)
     finally:
         store.close()
+    return 0
 
 
 if __name__ == "__main__":

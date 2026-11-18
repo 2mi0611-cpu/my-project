@@ -6,7 +6,8 @@ requires-python = ">=3.10"
 dependencies = ["requests>=2.28", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "openpyxl>=3.1"]
+xlsx = ["openpyxl>=3.1"]
 
 [project.scripts]
 taxdeed = "taxdeed.cli:main"

@@ -1,0 +1,43 @@
+name: Daily deal scan
+
+# Runs `taxdeed auto` every morning and on demand (Actions tab -> Run workflow).
+# It does nothing until you commit a sources.yaml (see sources.example.yaml).
+# Results: download the "deal-reports" artifact from the run, open shortlist.html.
+# This runs on GitHub's servers, which have open internet access, so the FEMA / USGS /
+# wetlands / Census lookups work without any extra setup.
+
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[xlsx]"
+      - name: Remember which properties were already seen (so only new ones are marked NEW)
+        uses: actions/cache@v4
+        with:
+          path: taxdeed.db
+          key: taxdeed-db-${{ github.run_id }}
+          restore-keys: taxdeed-db-
+      - name: Scan
+        run: |
+          if [ ! -f sources.yaml ]; then
+            echo "No sources.yaml committed - nothing to scan."
+            exit 0
+          fi
+          taxdeed auto --sources sources.yaml
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deal-reports
+          path: reports/
+          if-no-files-found: ignore

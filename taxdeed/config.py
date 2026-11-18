@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 
 import yaml
@@ -21,7 +22,8 @@ DEFAULTS: dict = {
         "closing_costs": 1500,          # recording, title search, etc.
         "quiet_title_cost": 2500,       # many tax deeds need quiet title to be insurable
         "assessed_to_market_ratio": 1.0,  # if county assesses at e.g. 80% of market, use 0.8
-        "max_bid_to_value": 0.6,        # land: skip deals where all-in cost > 60% of value
+        "max_bid_to_value": 0.6,        # land: max bid = 60% of value minus closing + quiet title
+        "ideal_bid_to_value": 0.4,      # land: ideal bid = 40% of value minus closing + quiet title
     },
     # --- houses to renovate ---
     "rehab": {
@@ -43,10 +45,18 @@ DEFAULTS: dict = {
         "holding_months": 6,
         "holding_cost_per_month": 800,  # taxes, insurance, utilities
         "selling_cost_pct": 8,          # agent + closing when you sell
-        "min_profit": 20000,
+        "min_profit": 20000,            # max bid is where profit falls to this
+        "target_profit": 40000,         # ideal bid is where profit reaches this
         "allow_sfha": True,             # existing houses in flood zones: allowed but flagged
         # Map your county's condition grades to tiers (lowercase). Added to the built-ins below.
         "condition_map": {},
+    },
+    # --- the automatic daily run (taxdeed auto) ---
+    "automation": {
+        "shortlist_statuses": ["PASS", "REVIEW"],
+        "min_score": 40,
+        "top_n": 50,
+        "output_dir": "reports",
     },
     "red_flag_keywords": [
         "common area", "common element", "drainage", "retention", "detention",
@@ -59,7 +69,7 @@ DEFAULTS: dict = {
 
 
 def _merge(base: dict, override: dict) -> dict:
-    out = dict(base)
+    out = copy.deepcopy(base)   # never hand out the shared defaults: callers may edit the result
     for k, v in (override or {}).items():
         if isinstance(v, dict) and isinstance(out.get(k), dict):
             out[k] = _merge(out[k], v)

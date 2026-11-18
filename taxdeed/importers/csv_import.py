@@ -64,34 +64,52 @@ def _bool(v: str):
     return None
 
 
+OUTPUT_FIELDS = {
+    "status", "strategy", "reasons", "red_flags", "notes", "est_equity", "bid_to_value",
+    "rehab_tier", "est_rehab_cost", "max_bid", "ideal_bid", "est_profit", "roi",
+    "rent_yield", "deal_score", "is_new", "source",
+}
+
+
+def parse_row(row: dict, reverse: dict[str, str] | None = None) -> dict:
+    """Map one CSV row to Parcel input fields. Blank cells come back as None or ''."""
+    reverse = reverse or {}
+    fields = set(Parcel.__dataclass_fields__) - OUTPUT_FIELDS
+    rec: dict = {}
+    for header, value in row.items():
+        if header is None:
+            continue
+        key = reverse.get(header) or ALIASES.get(_norm(header)) or _norm(header)
+        if key not in fields:
+            continue
+        if key in NUMERIC:
+            rec[key] = _num(value)
+        elif key in BOOLEAN:
+            rec[key] = _bool(value)
+        else:
+            rec[key] = (value or "").strip()
+    return rec
+
+
+def _rows(path: str):
+    with open(path, newline="", encoding="utf-8-sig", errors="replace") as f:
+        yield from csv.DictReader(f)
+
+
 def import_csv(path: str, county: str = "", state: str = "",
                column_map: dict[str, str] | None = None) -> list[Parcel]:
-    column_map = column_map or {}
-    reverse = {src: dst for dst, src in column_map.items()}
-    fields = set(Parcel.__dataclass_fields__)
+    reverse = {src: dst for dst, src in (column_map or {}).items()}
     parcels = []
-    with open(path, newline="", encoding="utf-8-sig") as f:
-        for row in csv.DictReader(f):
-            rec: dict = {}
-            for header, value in row.items():
-                if header is None:
-                    continue
-                key = reverse.get(header) or ALIASES.get(_norm(header)) or _norm(header)
-                if key not in fields:
-                    continue
-                if key in NUMERIC:
-                    rec[key] = _num(value)
-                elif key in BOOLEAN:
-                    rec[key] = _bool(value)
-                else:
-                    rec[key] = (value or "").strip()
-            if not rec.get("parcel_id"):
-                continue
-            rec.setdefault("county", county)
-            rec.setdefault("state", state)
-            if not rec["county"]:
-                rec["county"] = county
-            if not rec["state"]:
-                rec["state"] = state
-            parcels.append(Parcel(**rec))
+    for row in _rows(path):
+        rec = parse_row(row, reverse)
+        if not rec.get("parcel_id"):
+            continue
+        rec["county"] = rec.get("county") or county
+        rec["state"] = rec.get("state") or state
+        parcels.append(Parcel(**rec))
     return parcels
+
+
+def read_overrides(path: str) -> list[dict]:
+    """Your own corrections (e.g. a comp-based ARV) keyed by parcel id. Only filled cells count."""
+    return [rec for rec in (parse_row(row) for row in _rows(path)) if rec.get("parcel_id")]

@@ -34,6 +34,42 @@ For every property it:
 6. **Reports** a ranked HTML or CSV table, with a map link for each property.
    Use `--strategy land` or `--strategy rehab` to see one kind of deal.
 
+## Automatic mode (the one to use)
+
+Set it up once, then it finds the deals for you:
+
+1. `cp sources.example.yaml sources.yaml` and list your county's sale-list download link(s).
+   Each source is a direct CSV/XLSX link (or a local file), plus a `map:` of your list's column names.
+2. `cp config.example.yaml config.yaml` and set your numbers (repair $/sq ft, target profit, limits).
+3. Run `taxdeed auto`. For every source it:
+   - downloads the list (the raw file is kept in `data/raw/<source>/<date>`),
+   - screens every property on the list data alone (lot size, repair scope, bid vs. value),
+   - looks up flood, wetland, slope and address only for the ones that haven't already failed,
+   - writes `reports/<date>/shortlist.html` + `.csv` (the best deals) and `all.html` + `.csv`.
+4. Properties you've seen before aren't looked up again, and new ones are marked **NEW**.
+
+**The two prices you care about, on every row:**
+
+| | What it means |
+|---|---|
+| **Ideal bid** | The bid that leaves your **target profit** (default $40k for a house). Aim for this. |
+| **Max bid** | The most you should ever bid: the stricter of the 70%-of-ARV rule and your **minimum profit** (default $20k). If the bidding passes this, walk away. |
+
+For land the same two prices come from your value ratios (ideal 40%, max 60% of value, after closing and quiet-title costs).
+The run also prints the top 10 with their opening bid, ideal bid, max bid and expected profit.
+
+**Your own numbers:** when you pull sold comps for a property, put the ARV (and rent, condition...) in
+`overrides.csv` (see `overrides.example.csv`). It is applied to the matching parcel every run, so a re-download
+never erases it.
+
+**Running it on a schedule:** `.github/workflows/daily-scan.yml` runs `taxdeed auto` every morning on GitHub's servers
+(which have open internet, so the flood/wetland/elevation lookups work) and saves the reports as a downloadable
+"deal-reports" artifact. It starts working once you commit `sources.yaml` and `config.yaml` and the workflow is on your default branch.
+On your own computer, a cron line does the same: `0 7 * * * cd ~/my-project && taxdeed auto`.
+
+If a source can't be downloaded (the site needs a login, or returns a web page instead of a spreadsheet) the run
+reports that source's error, still processes the others, and exits with an error so a scheduled run shows red.
+
 ## Quick start
 
 ```bash
@@ -88,7 +124,8 @@ Before bidding on anything, still check:
 
 ## Roadmap
 
-- [ ] County-specific scraper for the first target county
+- [ ] County-specific scraper for sites that only offer a search page (needs the target county)
+- [ ] Email / text alert when a new deal passes
 - [ ] Comparable sales for real land values and ARVs (replacing assessed value)
 - [ ] Code-violation and permit data from the county/city
 - [ ] Rental analysis (rent comps, cash flow, BRRRR)

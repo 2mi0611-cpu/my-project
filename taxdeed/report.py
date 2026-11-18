@@ -10,15 +10,15 @@ def usd(v: float) -> str:
     return f"-${abs(v):,.0f}" if v < 0 else f"${v:,.0f}"
 
 
-COMMON = ["deal_score", "status", "strategy", "county", "parcel_id", "address", "sale_date",
-          "opening_bid"]
+COMMON = ["deal_score", "status", "is_new", "strategy", "county", "parcel_id", "address",
+          "sale_date", "opening_bid", "ideal_bid", "max_bid"]
 LAND = ["est_market_value", "est_equity", "bid_to_value", "lot_acres", "zoning",
         "flood_zone", "wetlands", "slope_pct", "road_frontage"]
-REHAB = ["max_bid", "est_arv", "est_rehab_cost", "rehab_tier", "est_profit", "roi",
+REHAB = ["est_arv", "est_rehab_cost", "rehab_tier", "est_profit", "roi",
          "rent_yield", "building_sqft", "year_built", "bedrooms", "bathrooms", "condition",
          "occupied", "flood_zone"]
 TAIL = ["reasons", "red_flags", "notes", "lat", "lon"]
-MONEY = {"opening_bid", "est_market_value", "est_equity", "max_bid", "est_arv",
+MONEY = {"opening_bid", "est_market_value", "est_equity", "max_bid", "ideal_bid", "est_arv",
          "est_rehab_cost", "est_profit"}
 PCT = {"roi", "rent_yield"}
 WIDE = {"reasons", "red_flags", "notes"}
@@ -46,6 +46,8 @@ def _cell(p: Parcel, col: str):
 
 
 def _fmt(col: str, v):
+    if col == "is_new":
+        return "NEW" if v else ""
     if v == "":
         return v
     if col in MONEY:
@@ -100,7 +102,8 @@ th{{background:#f4f4f4;position:sticky;top:0}}
 <h1>{title}</h1>
 <p>{len(parcels)} properties, ranked by deal score. <b>land</b> = vacant lot checked for
 buildability; <b>rehab</b> = house checked for renovation cost and flip profit
-(<b>max bid</b> = 70% of ARV minus repairs and closing costs; don't bid above it).
+<b>Ideal bid</b> = the bid that leaves your target profit; <b>max bid</b> = the most you
+should ever bid (walk away above it).
 PASS = all checks passed, REVIEW = data missing, FAIL = a hard check failed.
 Screening only &mdash; verify title, zoning, condition and comps before bidding.</p>
 <div class="wrap"><table><thead><tr>{head}</tr></thead><tbody>

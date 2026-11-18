@@ -1,0 +1,35 @@
+# Copy to sources.yaml. `taxdeed auto` downloads every source listed here, screens it,
+# and writes reports/<date>/shortlist.html with an ideal bid and max bid per property.
+#
+# A source is a direct link to a CSV or XLSX file (`url`) or a local file (`file`).
+# Look on your county tax collector / clerk site for "tax deed sale list", "surplus"
+# or "foreclosure list" downloads. Auction sites (RealAuction, Bid4Assets, GovDeals)
+# often only show a search page; for those download the list by hand and use `file:`,
+# or ask me to build a scraper once you've picked the county.
+
+sources:
+  - name: example-county-tax-deeds       # unique label, used for the saved download folder
+    county: Example
+    state: FL
+    url: https://example.gov/tax-deed-sales/current-list.csv
+    # format: csv                        # csv (default) or xlsx
+    # sheet: "Sale List"                 # xlsx only: which sheet (default: first)
+    # skip_rows: 2                       # title lines above the real header row
+    # headers: {Authorization: "Bearer ..."}   # only if the site requires it
+    map:                                 # YOUR csv header names (left = our field name)
+      parcel_id: "Parcel ID"
+      address: "Situs Address"
+      opening_bid: "Opening Bid"
+      assessed_value: "Just Value"
+      # Add whichever of these the list has; each one makes the screening sharper:
+      # building_sqft: "Heated Area"
+      # year_built: "Year Built"
+      # condition: "Condition"
+      # lot_acres: "Acres"
+      # zoning: "Zoning"
+      # sale_date: "Sale Date"
+
+  # - name: hand-downloaded-list
+  #   county: Example
+  #   state: FL
+  #   file: data/manual/example_list.xlsx
