@@ -5,6 +5,6 @@ __pycache__/
 *.db
 deals.html
 deals.csv
-data/
+data/raw/
 reports/
 overrides.csv

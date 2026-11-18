@@ -33,3 +33,31 @@ sources:
   #   county: Example
   #   state: FL
   #   file: data/manual/example_list.xlsx
+
+# ---- Your four counties (Florida). See COUNTIES.md. ----
+# None of these has a verified download link yet. Until one is confirmed, save each county's
+# list as a spreadsheet and point `file:` at it. Then fill in `map:` with that file's headers.
+#
+#  - name: volusia-tax-deeds
+#    county: Volusia
+#    state: FL
+#    file: data/manual/volusia.xlsx
+#    map: {parcel_id: "...", opening_bid: "...", address: "..."}
+#
+#  - name: orange-tax-deeds
+#    county: Orange
+#    state: FL
+#    file: data/manual/orange.xlsx
+#    map: {parcel_id: "...", opening_bid: "...", address: "..."}
+#
+#  - name: putnam-tax-deeds
+#    county: Putnam
+#    state: FL
+#    file: data/manual/putnam.xlsx
+#    map: {parcel_id: "...", opening_bid: "...", address: "..."}
+#
+#  - name: marion-lands-available
+#    county: Marion
+#    state: FL
+#    file: data/manual/marion.xlsx
+#    map: {parcel_id: "...", opening_bid: "...", address: "..."}
