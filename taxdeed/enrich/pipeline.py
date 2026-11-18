@@ -24,6 +24,8 @@ def enrich(p: Parcel) -> Parcel:
             p.flood_zone, p.in_sfha = flood.flood_zone(p.lat, p.lon)
         except Exception as e:  # noqa: BLE001
             log.warning("flood lookup failed for %s: %s", p.parcel_id, e)
+        if p.improved is True or p.building_sqft:
+            return p  # existing house: wetlands/slope only matter for new construction
         try:
             p.wetlands, p.wetland_types = wetlands.wetlands(p.lat, p.lon)
         except Exception as e:  # noqa: BLE001

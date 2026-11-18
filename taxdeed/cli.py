@@ -3,7 +3,7 @@
   taxdeed import  auction.csv --county "Polk" --state FL [--map map.yaml]
   taxdeed enrich  [--county Polk]            # flood, wetlands, slope, geocode
   taxdeed score   [--config config.yaml]
-  taxdeed report  --out deals.html           # or deals.csv
+  taxdeed report  --out deals.html [--strategy land|rehab]   # or deals.csv
   taxdeed run     auction.csv --county Polk --state FL --out deals.html   # all of the above
 """
 from __future__ import annotations
@@ -43,14 +43,19 @@ def _enrich(args, store, cfg):
 def _score(args, store, cfg):
     parcels = [score(p, cfg) for p in store.all(args.county)]
     store.upsert(parcels)
-    counts = {s: sum(p.buildable_status == s for p in parcels) for s in ("PASS", "REVIEW", "FAIL")}
-    print(f"Scored {len(parcels)} parcels: {counts}")
+    for strat in ("land", "rehab"):
+        group = [p for p in parcels if p.strategy == strat]
+        if group:
+            counts = {s: sum(p.status == s for p in group) for s in ("PASS", "REVIEW", "FAIL")}
+            print(f"Scored {len(group)} {strat} parcels: {counts}")
 
 
 def _report(args, store):
     parcels = store.all(args.county)
-    (write_csv if args.out.endswith(".csv") else write_html)(parcels, args.out)
-    print(f"Wrote {args.out}")
+    if args.strategy:
+        parcels = [p for p in parcels if p.strategy == args.strategy]
+    (write_csv if args.out.endswith(".csv") else write_html)(parcels, args.out, args.strategy)
+    print(f"Wrote {args.out} ({len(parcels)} properties)")
 
 
 def main(argv=None):
@@ -69,11 +74,14 @@ def main(argv=None):
         sp.add_argument("--skip-enrich", action="store_true")
         if name == "run":
             sp.add_argument("--out", default="deals.html")
+            sp.add_argument("--strategy", choices=["land", "rehab"], default=None)
     for name in ("enrich", "score", "report"):
         sp = sub.add_parser(name)
         sp.add_argument("--county", default=None)
         if name == "report":
             sp.add_argument("--out", default="deals.html")
+            sp.add_argument("--strategy", choices=["land", "rehab"], default=None,
+                            help="only vacant land, or only houses to renovate")
 
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)

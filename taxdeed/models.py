@@ -6,16 +6,17 @@ from typing import Optional
 
 @dataclass
 class Parcel:
-    """One parcel offered at a tax deed sale, plus everything we learn about it."""
+    """One property from an auction or distressed-property list, plus everything we learn about it."""
 
-    # --- from the auction list ---
+    # --- from the list ---
     parcel_id: str
     county: str = ""
     state: str = ""
     address: str = ""
     legal_description: str = ""
+    owner_name: str = ""
     sale_date: str = ""
-    opening_bid: Optional[float] = None
+    opening_bid: Optional[float] = None      # opening bid, or asking price for non-auction lists
     assessed_value: Optional[float] = None
     lot_acres: Optional[float] = None
     lot_width_ft: Optional[float] = None
@@ -26,6 +27,17 @@ class Parcel:
     lat: Optional[float] = None
     lon: Optional[float] = None
 
+    # --- building details (houses) ---
+    building_sqft: Optional[float] = None
+    year_built: Optional[float] = None
+    bedrooms: Optional[float] = None
+    bathrooms: Optional[float] = None
+    condition: str = ""                      # assessor condition grade, e.g. Good / Fair / Poor
+    occupied: Optional[bool] = None
+    code_violations: Optional[float] = None
+    est_arv: Optional[float] = None          # after-repair value, from sold comps
+    est_rent: Optional[float] = None         # monthly market rent
+
     # --- enrichment (filled in by taxdeed.enrich) ---
     flood_zone: Optional[str] = None
     in_sfha: Optional[bool] = None           # FEMA Special Flood Hazard Area
@@ -33,14 +45,22 @@ class Parcel:
     wetland_types: str = ""
     elevation_ft: Optional[float] = None
     slope_pct: Optional[float] = None
-    est_market_value: Optional[float] = None  # from comps or your own entry
+    est_market_value: Optional[float] = None  # as-is value (land value for lots)
 
     # --- scoring (filled in by taxdeed.scoring) ---
-    buildable_status: str = ""               # PASS / FAIL / REVIEW
-    buildable_reasons: list[str] = field(default_factory=list)
+    strategy: str = ""                       # "land" (build) or "rehab" (renovate)
+    status: str = ""                         # PASS / FAIL / REVIEW
+    reasons: list[str] = field(default_factory=list)
     red_flags: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
     est_equity: Optional[float] = None
     bid_to_value: Optional[float] = None
+    rehab_tier: str = ""                     # light / medium / heavy / gut
+    est_rehab_cost: Optional[float] = None
+    max_bid: Optional[float] = None
+    est_profit: Optional[float] = None
+    roi: Optional[float] = None
+    rent_yield: Optional[float] = None
     deal_score: Optional[float] = None
 
     def to_dict(self) -> dict:

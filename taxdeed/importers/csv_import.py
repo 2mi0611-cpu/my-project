@@ -11,8 +11,10 @@ import re
 
 from ..models import Parcel
 
-NUMERIC = {"opening_bid", "assessed_value", "lot_acres", "lot_width_ft", "lat", "lon"}
-BOOLEAN = {"improved", "road_frontage"}
+NUMERIC = {"opening_bid", "assessed_value", "lot_acres", "lot_width_ft", "lat", "lon",
+           "building_sqft", "year_built", "bedrooms", "bathrooms", "code_violations",
+           "est_arv", "est_rent"}
+BOOLEAN = {"improved", "road_frontage", "occupied"}
 
 # Common header spellings seen on auction lists -> our field names
 ALIASES = {
@@ -24,6 +26,17 @@ ALIASES = {
     "assessed": "assessed_value", "just_value": "assessed_value", "market_value": "assessed_value",
     "acres": "lot_acres", "acreage": "lot_acres",
     "lot_width": "lot_width_ft", "width": "lot_width_ft", "frontage_ft": "lot_width_ft",
+    # non-auction distressed lists (pre-foreclosure, probate, wholesaler): price = what you'd pay
+    "price": "opening_bid", "asking_price": "opening_bid", "list_price": "opening_bid",
+    "owner": "owner_name",
+    "sqft": "building_sqft", "living_area": "building_sqft", "heated_area": "building_sqft",
+    "bldg_sqft": "building_sqft", "living_sqft": "building_sqft", "square_feet": "building_sqft",
+    "yr_built": "year_built", "built": "year_built",
+    "beds": "bedrooms", "baths": "bathrooms",
+    "cond": "condition", "building_condition": "condition",
+    "occupancy": "occupied", "violations": "code_violations",
+    "arv": "est_arv", "after_repair_value": "est_arv",
+    "rent": "est_rent", "market_rent": "est_rent",
     "latitude": "lat", "longitude": "lon", "lng": "lon",
 }
 
@@ -44,7 +57,7 @@ def _num(v: str):
 
 def _bool(v: str):
     v = (v or "").strip().lower()
-    if v in {"y", "yes", "true", "1", "improved"}:
+    if v in {"y", "yes", "true", "1", "improved", "occupied"}:
         return True
     if v in {"n", "no", "false", "0", "vacant"}:
         return False

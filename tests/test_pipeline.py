@@ -16,7 +16,7 @@ SAMPLE = Path(__file__).parent.parent / "sample_data" / "sample_auction.csv"
 
 def test_import_maps_common_headers():
     parcels = import_csv(str(SAMPLE), county="Sample", state="FL")
-    assert len(parcels) == 4
+    assert len(parcels) == 6
     p = parcels[0]
     assert p.parcel_id == "SAMPLE-001"
     assert p.opening_bid == 4200
@@ -69,7 +69,7 @@ def test_good_lot_passes_and_scores_high(monkeypatch):
                lot_acres=0.5, lot_width_ft=100, road_frontage=True, improved=False,
                legal_description="LOT 4 BLK 2")
     score(enrich(p), cfg)
-    assert p.buildable_status == "PASS", p.buildable_reasons
+    assert p.status == "PASS", p.reasons
     assert p.est_equity == 40000 - 4000 - 1500 - 2500
     assert p.deal_score > 60
 
@@ -79,8 +79,8 @@ def test_flood_zone_fails(monkeypatch):
     p = Parcel(parcel_id="2", address="2 Main St", opening_bid=4000, assessed_value=40000,
                lot_acres=0.5, lot_width_ft=100, road_frontage=True)
     score(enrich(p), load_config())
-    assert p.buildable_status == "FAIL"
-    assert any("flood" in r for r in p.buildable_reasons)
+    assert p.status == "FAIL"
+    assert any("flood" in r for r in p.reasons)
 
 
 def test_missing_data_is_review_not_pass(monkeypatch):
@@ -90,8 +90,8 @@ def test_missing_data_is_review_not_pass(monkeypatch):
     p = Parcel(parcel_id="3", lat=27.0, lon=-81.0, opening_bid=1000, assessed_value=30000,
                lot_acres=0.5, lot_width_ft=80, road_frontage=True, address="3 Main St")
     score(enrich(p), load_config())
-    assert p.buildable_status == "REVIEW"
-    assert "flood zone unknown" in p.buildable_reasons
+    assert p.status == "REVIEW"
+    assert "flood zone unknown" in p.reasons
 
 
 def test_sliver_lot_flagged(monkeypatch):
@@ -100,7 +100,7 @@ def test_sliver_lot_flagged(monkeypatch):
                lot_width_ft=12, road_frontage=False, lat=27.0, lon=-81.0,
                legal_description="TRACT A COMMON AREA AND DRAINAGE")
     score(enrich(p), load_config())
-    assert p.buildable_status == "FAIL"
+    assert p.status == "FAIL"
     assert any("common area" in f for f in p.red_flags)
     assert any("narrow" in f for f in p.red_flags)
     assert p.deal_score < 10
@@ -122,6 +122,95 @@ def test_cli_run_end_to_end(monkeypatch, tmp_path):
     html = out.read_text()
     assert "SAMPLE-001" in html and "SAMPLE-004" in html
     store = Store(tmp_path / "t.db")
-    ranked = sorted(store.all(), key=lambda p: p.deal_score, reverse=True)
-    assert ranked[0].parcel_id == "SAMPLE-001"
+    land = sorted((p for p in store.all() if p.strategy == "land"),
+                  key=lambda p: p.deal_score, reverse=True)
+    assert land[0].parcel_id == "SAMPLE-001"
     store.close()
+
+
+# ------------------------------------------------------------- rehab strategy
+
+from taxdeed import rehab  # noqa: E402
+
+
+def test_condition_grades_map_to_tiers():
+    assert rehab.condition_tier("Good") == "light"
+    assert rehab.condition_tier("FAIR") == "medium"
+    assert rehab.condition_tier("POOR - ROOF DAMAGE") == "heavy"
+    assert rehab.condition_tier("Very Poor") == "gut"
+    assert rehab.condition_tier("") is None
+    assert rehab.condition_tier("C3", {"c3": "light"}) == "light"
+
+
+def _house(**kw):
+    base = dict(parcel_id="H1", address="1 House St", improved=True, opening_bid=15000,
+                assessed_value=60000, building_sqft=1200, year_built=1995,
+                condition="Average", occupied=False, est_arv=175000)
+    base.update(kw)
+    return Parcel(**base)
+
+
+def test_light_rehab_math_and_pass():
+    p = score(_house(), load_config())
+    assert p.strategy == "rehab"
+    assert p.rehab_tier == "light"
+    # (5000 + 1200*20) * 1.15 = 33,350 -> 33,400
+    assert p.est_rehab_cost == 33400
+    # 175000*0.7 - 33400 - 1500 - 2500 = 85,100
+    assert p.max_bid == 85100
+    # cash in = 19000 + 33400 + 4800 = 57,200; selling 14,000; profit 103,800
+    assert p.est_profit == 103800
+    assert p.status == "PASS", p.reasons
+    assert p.deal_score > 80
+
+
+def test_heavy_rehab_fails_by_default():
+    p = score(_house(condition="Poor"), load_config())
+    assert p.rehab_tier == "heavy"
+    assert p.status == "FAIL"
+    assert any("heavy rehab" in r for r in p.reasons)
+
+
+def test_old_occupied_house_costs_more_and_is_flagged():
+    base = score(_house(), load_config()).est_rehab_cost
+    p = score(_house(year_built=1940, occupied=True), load_config())
+    assert p.est_rehab_cost > base + 3500
+    assert any("occupied" in f for f in p.red_flags)
+    assert any("1950" in n for n in p.notes)
+
+
+def test_code_violations_bump_scope():
+    p = score(_house(condition="Fair", code_violations=4), load_config())
+    assert p.rehab_tier == "heavy"
+
+
+def test_bid_above_max_bid_fails():
+    p = score(_house(opening_bid=100000), load_config())
+    assert p.status == "FAIL"
+    assert any("above max bid" in r for r in p.reasons)
+
+
+def test_unknown_condition_and_size_is_review():
+    p = score(_house(condition="", building_sqft=None, est_arv=None), load_config())
+    assert p.status == "REVIEW"
+    assert any("building size unknown" in r for r in p.reasons)
+
+
+def test_house_skips_wetland_and_slope_lookups(monkeypatch):
+    monkeypatch.setattr(flood, "flood_zone", lambda la, lo: ("X", False))
+    monkeypatch.setattr(wetlands, "wetlands", lambda *a: pytest.fail("should not call wetlands"))
+    monkeypatch.setattr(elevation, "slope_pct", lambda *a: pytest.fail("should not call slope"))
+    p = enrich(_house(lat=27.0, lon=-81.0))
+    assert p.flood_zone == "X"
+
+
+def test_report_strategy_filter(monkeypatch, tmp_path):
+    _fake_services(monkeypatch)
+    db = str(tmp_path / "t.db")
+    cli.main(["--db", db, "run", str(SAMPLE), "--county", "Sample", "--state", "FL",
+              "--out", str(tmp_path / "all.html")])
+    out = tmp_path / "rehab.csv"
+    cli.main(["--db", db, "report", "--strategy", "rehab", "--out", str(out)])
+    lines = out.read_text().splitlines()
+    assert len(lines) == 1 + 3                     # header + 3 houses
+    assert "SAMPLE-004" in lines[1]                # light rehab ranks first

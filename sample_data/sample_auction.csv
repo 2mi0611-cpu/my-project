@@ -1,5 +1,7 @@
-Parcel Number,Property Address,Legal,Minimum Bid,Assessed,Acres,Lot Width,Zoning,Improved,Road Frontage,Latitude,Longitude
-SAMPLE-001,123 Example Rd,LOT 4 BLK 2 EXAMPLE ESTATES,4200,38000,0.5,100,R-1,N,Y,,
-SAMPLE-002,,TRACT A COMMON AREA AND DRAINAGE,350,1200,0.03,12,R-1,N,N,,
-SAMPLE-003,45 Sample Ln,LOT 9 SAMPLE ACRES,9800,22000,1.2,150,A-1,N,Y,,
-SAMPLE-004,77 Demo Ct,LOT 1 DEMO PARK,15000,60000,0.25,70,R-2,Y,Y,,
+Parcel Number,Property Address,Legal,Minimum Bid,Assessed,Acres,Lot Width,Zoning,Improved,Road Frontage,Sqft,Year Built,Beds,Baths,Condition,Occupied,Violations,ARV,Rent,Latitude,Longitude
+SAMPLE-001,123 Example Rd,LOT 4 BLK 2 EXAMPLE ESTATES,4200,38000,0.5,100,R-1,N,Y,,,,,,,,,,,
+SAMPLE-002,,TRACT A COMMON AREA AND DRAINAGE,350,1200,0.03,12,R-1,N,N,,,,,,,,,,,
+SAMPLE-003,45 Sample Ln,LOT 9 SAMPLE ACRES,9800,22000,1.2,150,A-1,N,Y,,,,,,,,,,,
+SAMPLE-004,77 Demo Ct,LOT 1 DEMO PARK,15000,60000,0.25,70,R-2,Y,Y,1200,1995,3,2,Average,N,0,175000,1600,,
+SAMPLE-005,9 Test Ave,LOT 12 TEST HEIGHTS,22000,85000,0.2,60,R-1,Y,Y,1500,1962,3,1.5,Fair,Y,1,190000,1500,,
+SAMPLE-006,300 Mock St,LOT 3 MOCK TOWN,8000,40000,0.15,50,R-1,Y,Y,1100,1938,2,1,Poor,N,4,120000,1100,,

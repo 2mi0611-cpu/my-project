@@ -1,0 +1,83 @@
+"""Renovation cost and flip/rental math for houses.
+
+Tax deed houses are usually sold as-is with no interior inspection, so this
+works from what the assessor knows (size, age, condition grade) plus a
+contingency. Treat the result as a screening estimate; drive by, and check
+permits and code violations before bidding.
+"""
+from __future__ import annotations
+
+from .models import Parcel
+
+TIERS = ["light", "medium", "heavy", "gut"]
+
+# Common assessor condition grades -> renovation scope
+CONDITION_TIERS = {
+    "excellent": "light", "very good": "light", "good": "light", "average": "light",
+    "normal": "light", "fair": "medium", "below average": "medium", "worn": "medium",
+    "poor": "heavy", "badly worn": "heavy", "very poor": "gut", "unsound": "gut",
+    "dilapidated": "gut", "condemned": "gut", "uninhabitable": "gut",
+}
+
+
+def condition_tier(condition: str, extra_map: dict | None = None) -> str | None:
+    c = (condition or "").strip().lower()
+    if not c:
+        return None
+    mapping = {**CONDITION_TIERS, **{k.lower(): v for k, v in (extra_map or {}).items()}}
+    if c in mapping:
+        return mapping[c]
+    # Fall back to the longest grade name contained in the text ("POOR - ROOF DAMAGE").
+    for name in sorted(mapping, key=len, reverse=True):
+        if name in c:
+            return mapping[name]
+    return None
+
+
+def estimate(p: Parcel, cfg: dict) -> None:
+    """Fill rehab tier/cost, max bid, profit, ROI and rent yield on the parcel."""
+    r, val = cfg["rehab"], cfg["value"]
+    notes = p.notes
+
+    tier = condition_tier(p.condition, r.get("condition_map"))
+    if tier is None:
+        tier = r["unknown_condition_tier"]
+        notes.append(f"condition unknown - assumed {tier} rehab")
+    if p.code_violations and p.code_violations >= 3 and tier in ("light", "medium"):
+        tier = TIERS[TIERS.index(tier) + 1]
+        notes.append(f"{int(p.code_violations)} code violations - bumped scope to {tier}")
+    p.rehab_tier = tier
+
+    if p.building_sqft:
+        per_sqft = r["cost_per_sqft"][tier]
+        if p.year_built and p.year_built < 1950:
+            per_sqft += r["pre_1950_per_sqft"]
+            notes.append("built before 1950 - budgeted for old wiring/plumbing")
+        elif p.year_built and p.year_built < 1978:
+            per_sqft += r["pre_1978_per_sqft"]
+            notes.append("built before 1978 - lead paint likely")
+        cost = (r["fixed_costs"] + p.building_sqft * per_sqft) * (1 + r["contingency_pct"] / 100)
+        if p.occupied:
+            cost += r["eviction_cost"]
+        p.est_rehab_cost = round(cost, -2)
+    else:
+        p.est_rehab_cost = None
+
+    if p.est_arv is None and p.est_market_value:
+        # Weak fallback: assessed value is as-is, not after-repair. Get real comps.
+        p.est_arv = p.est_market_value
+        notes.append("ARV taken from assessed value - pull sold comps")
+
+    p.max_bid = p.est_profit = p.roi = p.rent_yield = None
+    if p.est_arv and p.est_rehab_cost is not None:
+        p.max_bid = round(p.est_arv * r["arv_factor"] - p.est_rehab_cost
+                          - val["closing_costs"] - val["quiet_title_cost"], -2)
+        if p.opening_bid is not None:
+            acquisition = p.opening_bid + val["closing_costs"] + val["quiet_title_cost"]
+            holding = r["holding_months"] * r["holding_cost_per_month"]
+            selling = p.est_arv * r["selling_cost_pct"] / 100
+            cash_in = acquisition + p.est_rehab_cost + holding
+            p.est_profit = round(p.est_arv - cash_in - selling, -2)
+            p.roi = round(p.est_profit / cash_in, 3) if cash_in else None
+            if p.est_rent:
+                p.rent_yield = round(p.est_rent * 12 / (acquisition + p.est_rehab_cost), 3)
