@@ -1,0 +1,18 @@
+# Copy to config.yaml and adjust. Anything you leave out uses the defaults
+# in taxdeed/config.py.
+
+buildable:
+  min_lot_acres: 0.17          # check the county's minimum lot size for your zoning
+  min_lot_width_ft: 50
+  max_slope_pct: 15            # above ~15% site work gets expensive
+  allow_sfha: false            # FEMA A/V flood zones
+  allow_wetlands: false
+  require_road_frontage: true
+  require_vacant: true         # set true if you only want raw land
+  allowed_zoning: []           # e.g. ["R-1", "R-2", "RS-6", "A-1"]
+
+value:
+  closing_costs: 1500
+  quiet_title_cost: 2500       # varies a lot by state; ask a local attorney
+  assessed_to_market_ratio: 1.0
+  max_bid_to_value: 0.6
