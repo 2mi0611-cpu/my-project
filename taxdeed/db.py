@@ -40,5 +40,10 @@ class Store:
             q, args = q + " WHERE county = ?", (county,)
         return [Parcel.from_dict(json.loads(r[0])) for r in self.conn.execute(q, args)]
 
+    def get(self, county: str, parcel_id: str) -> Parcel | None:
+        row = self.conn.execute("SELECT data FROM parcels WHERE county = ? AND parcel_id = ?",
+                                (county, parcel_id)).fetchone()
+        return Parcel.from_dict(json.loads(row[0])) if row else None
+
     def close(self) -> None:
         self.conn.close()

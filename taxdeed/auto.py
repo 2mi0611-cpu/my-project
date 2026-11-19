@@ -41,7 +41,8 @@ def apply_overrides(parcels: list[Parcel], overrides: list[dict]) -> int:
 
 
 def run(cfg: dict, store: Store, sources_path: str = "sources.yaml",
-        overrides_path: str | None = "overrides.csv", out_root: str | None = None,
+        overrides_path: str | None = "overrides.csv",
+        ui_overrides_path: str | None = "overrides.ui.csv", out_root: str | None = None,
         only: list[str] | None = None, skip_enrich: bool = False,
         raw_dir: str = "data/raw", today: dt.date | None = None) -> dict:
     today = today or dt.date.today()
@@ -78,8 +79,9 @@ def run(cfg: dict, store: Store, sources_path: str = "sources.yaml",
                         setattr(p, f, getattr(old, f))
         current.extend(parcels)
 
-    if overrides_path and Path(overrides_path).exists():
-        apply_overrides(current, read_overrides(overrides_path))
+    for path in (overrides_path, ui_overrides_path):   # the web interface's values win
+        if path and Path(path).exists():
+            apply_overrides(current, read_overrides(path))
 
     # Screen on list data first; only spend lookups on properties that haven't already failed.
     for p in current:

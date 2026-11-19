@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tax Deed Deals</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Tax Deed Deals</h1>
+    <p class="sub" id="subtitle">Loading…</p>
+  </div>
+  <button id="reload" class="btn" type="button">Reload</button>
+</header>
+
+<section class="tiles" id="tiles" aria-label="Summary"></section>
+
+<section class="filters" aria-label="Filters">
+  <label class="grow">Search
+    <input id="q" type="search" placeholder="Address, parcel, owner, legal description">
+  </label>
+  <label>County <select id="county"></select></label>
+  <label>Type
+    <select id="strategy">
+      <option value="">All</option>
+      <option value="land">Vacant land</option>
+      <option value="rehab">House to renovate</option>
+    </select>
+  </label>
+  <label>Max opening bid
+    <input id="maxbid" type="number" min="0" step="500" placeholder="any">
+  </label>
+  <div class="chips" id="chips" role="group" aria-label="Show"></div>
+</section>
+
+<main class="layout">
+  <section class="tablewrap" aria-label="Properties">
+    <table id="table">
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p class="empty" id="empty" hidden></p>
+  </section>
+  <aside class="detail" id="detail" aria-live="polite"></aside>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

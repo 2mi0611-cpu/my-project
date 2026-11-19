@@ -50,6 +50,8 @@ def _fmt(col: str, v):
         return "NEW" if v else ""
     if v == "":
         return v
+    if col in ("ideal_bid", "max_bid") and v <= 0:
+        return "none"
     if col in MONEY:
         return usd(v)
     if col in PCT:

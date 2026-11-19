@@ -13,7 +13,7 @@ from ..models import Parcel
 
 NUMERIC = {"opening_bid", "assessed_value", "lot_acres", "lot_width_ft", "lat", "lon",
            "building_sqft", "year_built", "bedrooms", "bathrooms", "code_violations",
-           "est_arv", "est_rent"}
+           "est_arv", "est_rent", "est_market_value"}
 BOOLEAN = {"improved", "road_frontage", "occupied"}
 
 # Common header spellings seen on auction lists -> our field names

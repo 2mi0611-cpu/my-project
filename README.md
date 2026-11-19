@@ -34,6 +34,26 @@ For every property it:
 6. **Reports** a ranked HTML or CSV table, with a map link for each property.
    Use `--strategy land` or `--strategy rehab` to see one kind of deal.
 
+## Local interface
+
+```bash
+taxdeed auto          # download + screen your lists into taxdeed.db
+taxdeed serve --open  # then browse them at http://127.0.0.1:8765
+```
+
+A page on your own computer (nothing is uploaded; it only listens on 127.0.0.1). It shows every property
+in a sortable, filterable table with the **opening, ideal and max bid**, why each one passed or failed,
+red flags, and map links.
+
+- **Needs data** are properties with a price but nothing to value them by (for example Putnam's
+  lands-available list). Open one and enter the assessed value, lot size and so on under **Your numbers**:
+  it re-scores immediately.
+- What you enter is saved in `overrides.ui.csv` and applied again on every `taxdeed auto`, so a new
+  download never erases it.
+- A bid shows as **none** when your fixed costs (closing, quiet title) leave no room for the target
+  profit. Check those two numbers in `config.yaml` if that looks wrong for a very cheap lot.
+- Run `taxdeed auto` again, then press **Reload** on the page, to pick up a fresh download.
+
 ## Automatic mode (the one to use)
 
 Set it up once, then it finds the deals for you:

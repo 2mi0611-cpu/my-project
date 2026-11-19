@@ -1,5 +1,6 @@
 """Command line:
 
+  taxdeed serve   [--port 8765] [--open]     # the local web interface
   taxdeed auto    [--sources sources.yaml]   # download every source, screen, write the shortlist
   taxdeed fetch   [--sources sources.yaml]   # just download the lists
   taxdeed import  auction.csv --county "Polk" --state FL [--map map.yaml]
@@ -81,8 +82,28 @@ def _m(v):
     return "n/a" if v is None else usd(v)
 
 
+def _serve(args, cfg):
+    from .web import make_server
+    if not os.path.exists(args.db):
+        print(f"No database at {args.db} yet. Run `taxdeed auto` first; the page will be empty until then.")
+    srv = make_server(args.db, cfg, args.ui_overrides, args.host, args.port)
+    url = f"http://{args.host}:{srv.server_address[1]}/"
+    print(f"Open {url}   (Ctrl+C to stop)")
+    if args.open:
+        import webbrowser
+        webbrowser.open(url)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped.")
+    finally:
+        srv.server_close()
+    return 0
+
+
 def _auto(args, store, cfg):
     res = auto.run(cfg, store, sources_path=args.sources, overrides_path=args.overrides,
+                   ui_overrides_path=args.ui_overrides,
                    out_root=args.out_dir, only=args.only, skip_enrich=args.skip_enrich,
                    raw_dir=args.raw_dir)
     print(f"{res['total']} properties from {res['sources_ok']} source(s), {res['new']} new, "
@@ -134,8 +155,16 @@ def main(argv=None) -> int:
         if name == "auto":
             sp.add_argument("--overrides", default="overrides.csv",
                             help="CSV of your own figures per parcel (ARV, rent, condition...)")
+            sp.add_argument("--ui-overrides", default="overrides.ui.csv",
+                            help="values saved from the web interface")
             sp.add_argument("--skip-enrich", action="store_true")
             sp.add_argument("--out-dir", default=None)
+
+    sp = sub.add_parser("serve", help="open the local web interface")
+    sp.add_argument("--host", default="127.0.0.1", help="keep 127.0.0.1 so only this computer can connect")
+    sp.add_argument("--port", type=int, default=8765)
+    sp.add_argument("--open", action="store_true", help="open it in your browser")
+    sp.add_argument("--ui-overrides", default="overrides.ui.csv")
 
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
@@ -144,6 +173,8 @@ def main(argv=None) -> int:
 
     if args.cmd == "fetch":
         return _fetch(args)
+    if args.cmd == "serve":
+        return _serve(args, cfg)
     store = Store(args.db)
     try:
         if args.cmd == "import":
