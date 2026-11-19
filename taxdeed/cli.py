@@ -87,6 +87,9 @@ def _auto(args, store, cfg):
                    raw_dir=args.raw_dir)
     print(f"{res['total']} properties from {res['sources_ok']} source(s), {res['new']} new, "
           f"{len(res['shortlist'])} on the shortlist.")
+    if res["unvalued"]:
+        print(f"{res['unvalued']} properties have no value data (assessed value or ARV), so they can't "
+              f"be ranked. They are in all.html; add values in overrides.csv.")
     print(f"Open {res['out_dir']}/shortlist.html\n")
     for i, p in enumerate(res["shortlist"][:10], 1):
         print(f"{i:>2}. {'NEW ' if p.is_new else ''}{p.address or p.parcel_id} "

@@ -1,41 +1,47 @@
-# Target counties (Florida)
+# Target counties (Florida): what is verified and what is not
 
-Florida sells tax deeds by online auction, run by each county's Clerk or Comptroller.
-What follows comes from web search results only. **I have not been able to open any of these
-pages from the development environment**, so the exact download links and column layouts are
-still unverified. Confirm each one before relying on it.
+Checked on 2026-11-19 from the development environment. "Verified" means I opened the page and
+read the data. Everything else is from web search results and needs checking.
 
-| County | Who runs the sale | Where the auction runs | Other lists to check |
-|---|---|---|---|
-| **Volusia** | Clerk of the Circuit Court | volusia.realtaxdeed.com (sales at 9:00 AM ET) | Clerk's "Tax Deeds" page; "Lands Available" page; surplus-funds PDF |
-| **Orange** | County Comptroller | orange.realtaxdeed.com (notices say 10:00 AM ET) | Comptroller's tax deed page; legal notices list parcel ID + owner + sale date |
-| **Putnam** | Clerk of Court | Clerk's tax deed site (apps.putnam-fl.com), bidders register online | "Tax Deed Sale List and Information" (pick a sale date); county "lands available for taxes" page |
-| **Marion** | Clerk of Courts | Clerk's website | **Tax Collector** holds the "Lands Available" list (mariontax.com, Tax Certificate & Deed Sales page) |
+| County | Sale list | Status |
+|---|---|---|
+| **Putnam** | Clerk's *Lands Available for Taxes* page (apps.putnam-fl.com) | **Works.** 55 parcels read, $1,021 to $20,620, median $1,657. Automated by `sources.florida.yaml`. |
+| **Putnam** | Clerk's upcoming *Auction List* | Not automated. It sits behind a disclaimer/session that redirects to the Clerk's home page when requested directly. I did not click through the disclaimer for you. |
+| **Volusia** | volusia.realtaxdeed.com (Clerk runs the sale) | **Blocked.** The site's firewall returns 403 to this environment. The Clerk's own pages load, but their lists are not in the HTML I received. |
+| **Orange** | orange.realtaxdeed.com (Comptroller runs the sale) | **Blocked** (same 403). |
+| **Marion** | Marion County Clerk of the Courts website | **Not opened.** The Tax Collector's page says tax deed sales are processed there. That host is not on this session's allowed list. |
 
-## Two kinds of properties to watch
+## What the Putnam list does and does not give you
 
-1. **Auction items.** Each sale date has a list of parcels with an opening bid.
-2. **Lands available for taxes.** Parcels that got no bid at auction. These are the cheapest
-   and least competitive, and they match the "low price" goal best. Ask each county how the
-   purchase works and what price applies, because the rules differ.
+Gives: parcel number, owner, legal description, certificate number, auction date, the date it
+becomes available, and the **estimated purchase price**. Properties cannot be bought until 90 days
+after the auction, and they are sold "as is", with no warranty, and possibly subject to extra
+taxes and fees.
 
-## How to feed each county into the system
+Does not give: address, lot size, zoning, assessed value, flood or wetland data, or road access.
+Most entries are old platted subdivision lots ("PUTNAM MANOR S/D BLK 22 LOT 48"). Cheap does not
+mean buildable: lots like these often fail on size, septic, flooding or access. That is exactly
+what the screening is for, but it needs the missing data. Until then they show as
+"can't be ranked". Putnam's own links per parcel (Property Appraiser GIS and Tax Collector pages)
+would supply it; those hosts are not on the allowed list yet.
 
-The automatic run (`taxdeed auto`) needs a CSV or Excel file per county. Three ways to get one:
+## Florida rules that affect your numbers (from the Volusia Clerk's FAQ)
 
-1. **Direct link.** If the county site has a download link (CSV, XLSX), put its URL in `sources.yaml`.
-2. **Save by hand.** Export or copy the sale list into a spreadsheet, save it under `data/manual/`,
-   and point a `file:` source at it (see `sources.example.yaml`).
-3. **A scraper per site.** Needed when the site only offers an interactive page. I can build one
-   once I can see the page. Two things are required for that: network access to the host, and a look
-   at one real list to match its columns.
+- **Opening bid** = outstanding tax certificates + delinquent taxes + fees, costs and interest.
+- **Deposit:** $200 or 5% of the winning bid, whichever is greater, per property.
+- **Payment:** the balance is due within 24 hours of the sale, plus the recording fee, a deposit
+  registry fee, and **documentary stamps of $0.70 per $100** of the price. Put this in
+  `closing_costs` (about 0.7% of your bid, plus fees).
+- **Redemption:** the owner can redeem until the high bidder's full payment arrives.
+- **Possession:** the deed holder is entitled to immediate possession (F.S. 197.562).
+- **The deed is not a warranty deed.** Sold "as is". The buyer must find out which liens survive.
+  Plan for title work, and have a Florida real estate attorney review your first purchases.
+- Other counties set their own deposit and timing rules. Confirm each one on its own page.
 
-Notes from the sources found:
-- Putnam's Clerk says bidders need a deposit of **$200 or 5% of their maximum bid** and must
-  register on the county's auction platform.
-- Marion's Tax Collector says unsold properties go on the **Lands Available** list, held by the
-  Tax Collector rather than the Clerk.
-- Always confirm dates and rules on the county's own page. Third-party schedules
-  (for example taxsaleresources.com) may be out of date.
-- The buyer is responsible for finding out which liens survive the sale. Have a Florida real estate
-  attorney review your first purchases.
+## How to get the blocked counties working
+
+1. **By hand (works today):** open the county's auction site in your browser, copy the upcoming
+   sale list into a spreadsheet, save it under `data/manual/`, and uncomment its source in
+   `sources.florida.yaml`. Send me the first 10 rows of one list and I will fill in the `map:` for you.
+2. **Automatically:** needs the auction sites to accept the requests. Today they refuse this
+   environment. I have not tested GitHub's servers. I will not try to get around a site's block.

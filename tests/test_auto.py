@@ -231,3 +231,49 @@ def test_report_columns_cannot_be_imported_back(tmp_path):
     f.write_text("parcel_id,status,notes,max_bid,deal_score\nP1,PASS,hello,5,99\n")
     p = import_csv(str(f))[0]
     assert p.status == "" and p.notes == [] and p.max_bid is None and p.deal_score is None
+
+
+# ---------------------------------------------------------------- Putnam lands-available parser
+
+PUTNAM = Path(__file__).parent / "fixtures" / "putnam_laft_sample.html"
+
+
+def test_putnam_parser_reads_entries_and_skips_unreadable_blocks():
+    from taxdeed.importers import putnam
+    rows = putnam.parse_laft(PUTNAM.read_text())
+    assert [r["parcel_id"] for r in rows] == ["04-10-24-9030-0050-0250", "13-10-26-0000-0650-0001"]
+    a, b = rows
+    assert a["owner_name"] == "EXAMPLE OWNER ONE LLC"
+    assert a["legal_description"] == "TROUT LAKE GARDENS MB4 P68, BLK 5 LOT 25"
+    assert (a["sale_date"], a["available_date"], a["opening_bid"]) == ("09/24/2025", "12/23/2025", "1767.17")
+    assert a["case_number"] == "T.D. 2018-0003254"
+    assert b["owner_name"] == "EXAMPLE OWNER TWO & SONS"
+    assert b["available_date"] == "" and b["opening_bid"] == "20619.76"
+
+
+def test_putnam_parser_rejects_wrong_page():
+    from taxdeed.importers import putnam
+    with pytest.raises(RuntimeError, match="Lands Available"):
+        putnam.parse_laft("<html>Please accept our disclaimer</html>")
+
+
+def test_putnam_source_flows_through_the_pipeline(monkeypatch, tmp_path):
+    _fake_services(monkeypatch)
+    monkeypatch.setattr(fetch.requests, "get", lambda url, **k: _Resp(PUTNAM.read_bytes()))
+    src = tmp_path / "sources.yaml"
+    src.write_text(yaml.safe_dump({"sources": [{
+        "name": "putnam-lands", "county": "Putnam", "state": "FL", "parser": "putnam_laft",
+        "url": "https://apps.putnam-fl.com/coc/taxdeeds/public/public_LAFT.php"}]}))
+    store = Store(tmp_path / "t.db")
+    res = _run(tmp_path, store, sources=str(src))
+    assert res["total"] == 2 and not res["errors"]
+    assert res["unvalued"] == 2                      # the list has no assessed value to rank by
+    got = {p.parcel_id: p for p in store.all()}
+    p = got["04-10-24-9030-0050-0250"]
+    assert (p.opening_bid, p.available_date, p.county) == (1767.17, "12/23/2025", "Putnam")
+    store.close()
+
+
+def test_unknown_parser_is_an_error(tmp_path):
+    with pytest.raises(ValueError, match="unknown parser"):
+        fetch.fetch_source({"name": "x", "file": SAMPLE, "parser": "nope"}, tmp_path / "raw", DAY)

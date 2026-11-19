@@ -61,7 +61,7 @@ def run(cfg: dict, store: Store, sources_path: str = "sources.yaml",
             csv_path = fetch_source(src, raw_dir, today)
             parcels = import_csv(str(csv_path), county=src.get("county", ""),
                                  state=src.get("state", ""), column_map=src.get("map"))
-            if not parcels:
+            if not parcels and not src.get("allow_empty"):
                 raise RuntimeError("no rows with a parcel id - check the `map:` for this source")
         except Exception as e:  # noqa: BLE001  one bad source must not stop the others
             log.warning("source %s failed: %s", src["name"], e)
@@ -102,5 +102,6 @@ def run(cfg: dict, store: Store, sources_path: str = "sources.yaml",
     write_html(ranked, str(out_dir / "all.html"))
     write_csv(ranked, str(out_dir / "all.csv"))
 
-    return {"out_dir": str(out_dir), "total": len(current), "new": sum(p.is_new for p in current),
+    unvalued = [p for p in current if p.est_market_value is None and p.est_arv is None]
+    return {"out_dir": str(out_dir), "total": len(current), "unvalued": len(unvalued), "new": sum(p.is_new for p in current),
             "sources_ok": sources_ok, "shortlist": shortlist, "errors": errors}

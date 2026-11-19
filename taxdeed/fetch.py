@@ -15,6 +15,9 @@ from pathlib import Path
 import requests
 import yaml
 
+from .importers import putnam
+
+PARSERS = {"putnam_laft": putnam.convert}
 UA = "taxdeed-screener/0.1"
 
 
@@ -83,7 +86,11 @@ def fetch_source(src: dict, raw_dir: str | Path = "data/raw", today: dt.date | N
     out = Path(raw_dir) / name
     out.mkdir(parents=True, exist_ok=True)
     location = src.get("url") or src["file"]
-    fmt = (src.get("format") or Path(str(location).split("?")[0]).suffix.lstrip(".") or "csv").lower()
+    parser = src.get("parser")
+    if parser and parser not in PARSERS:
+        raise ValueError(f"{name}: unknown parser {parser!r} (known: {', '.join(PARSERS)})")
+    fmt = "html" if parser else (
+        src.get("format") or Path(str(location).split("?")[0]).suffix.lstrip(".") or "csv").lower()
     if fmt in ("xls", "xlsm"):
         fmt = "xlsx"
 
@@ -93,7 +100,10 @@ def fetch_source(src: dict, raw_dir: str | Path = "data/raw", today: dt.date | N
     else:
         shutil.copyfile(src["file"], raw)
 
-    if fmt == "xlsx":
+    if parser:
+        csv_path = out / f"{today.isoformat()}.csv"
+        PARSERS[parser](raw, csv_path)
+    elif fmt == "xlsx":
         csv_path = out / f"{today.isoformat()}.csv"
         _xlsx_to_csv(raw, csv_path, src.get("sheet"))
     elif fmt == "csv":
@@ -101,7 +111,8 @@ def fetch_source(src: dict, raw_dir: str | Path = "data/raw", today: dt.date | N
     else:
         raise ValueError(f"{name}: unsupported format {fmt!r} (use csv or xlsx)")
 
-    _validate(csv_path, name)
+    if not parser:
+        _validate(csv_path, name)
     if src.get("skip_rows"):
         _drop_lines(csv_path, int(src["skip_rows"]))
     return csv_path

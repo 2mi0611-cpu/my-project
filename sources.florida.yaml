@@ -1,0 +1,34 @@
+# Ready-to-use for your four Florida counties:  cp sources.florida.yaml sources.yaml
+# Only Putnam works automatically today. See COUNTIES.md for why and what unlocks the rest.
+
+sources:
+  # WORKS: verified against the live page (55 of 55 entries read). Cheap parcels that drew no
+  # bid at auction. The list has price but NO lot size / assessed value / zoning, so they can't
+  # be ranked until you add values (overrides.csv) or the appraiser data is connected.
+  - name: putnam-lands-available
+    county: Putnam
+    state: FL
+    parser: putnam_laft
+    url: https://apps.putnam-fl.com/coc/taxdeeds/public/public_LAFT.php
+    allow_empty: true          # the list is sometimes empty; that is not an error
+
+  # BLOCKED: these auction sites answer "403 Forbidden" to this environment (see COUNTIES.md).
+  # Save each upcoming-sale list from your browser as a spreadsheet, then uncomment.
+  #
+  # - name: volusia-tax-deeds          # volusia.realtaxdeed.com
+  #   county: Volusia
+  #   state: FL
+  #   file: data/manual/volusia.xlsx
+  #   map: {parcel_id: "...", opening_bid: "...", address: "..."}
+  #
+  # - name: orange-tax-deeds           # orange.realtaxdeed.com
+  #   county: Orange
+  #   state: FL
+  #   file: data/manual/orange.xlsx
+  #   map: {parcel_id: "...", opening_bid: "...", address: "..."}
+  #
+  # - name: marion-tax-deeds           # Marion County Clerk of the Courts website
+  #   county: Marion
+  #   state: FL
+  #   file: data/manual/marion.xlsx
+  #   map: {parcel_id: "...", opening_bid: "...", address: "..."}

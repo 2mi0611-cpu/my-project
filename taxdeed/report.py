@@ -11,7 +11,7 @@ def usd(v: float) -> str:
 
 
 COMMON = ["deal_score", "status", "is_new", "strategy", "county", "parcel_id", "address",
-          "sale_date", "opening_bid", "ideal_bid", "max_bid"]
+          "sale_date", "available_date", "opening_bid", "ideal_bid", "max_bid"]
 LAND = ["est_market_value", "est_equity", "bid_to_value", "lot_acres", "zoning",
         "flood_zone", "wetlands", "slope_pct", "road_frontage"]
 REHAB = ["est_arv", "est_rehab_cost", "rehab_tier", "est_profit", "roi",

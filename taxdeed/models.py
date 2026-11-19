@@ -16,6 +16,8 @@ class Parcel:
     legal_description: str = ""
     owner_name: str = ""
     sale_date: str = ""
+    available_date: str = ""                 # lands-available lists: first day it can be bought
+    case_number: str = ""                    # tax deed / certificate number
     opening_bid: Optional[float] = None      # opening bid, or asking price for non-auction lists
     assessed_value: Optional[float] = None
     lot_acres: Optional[float] = None
